@@ -146,8 +146,8 @@ const StewartRenderer = (() => {
             emissive: 0x0a1525,
         });
         baseMesh = new THREE.Mesh(geo, mat);
-        baseMesh.rotation.x = -Math.PI / 2;
-        baseMesh.position.y = -10;
+        baseMesh.rotation.x = Math.PI / 2;
+        baseMesh.position.y = 0;
         baseMesh.castShadow = true;
         baseMesh.receiveShadow = true;
         scene.add(baseMesh);
@@ -343,14 +343,14 @@ const StewartRenderer = (() => {
         topMesh.rotation.set(0, 0, 0);
         topMesh.quaternion.set(0, 0, 0, 1);
 
-        // Build rotation: first lay flat (rotate -90 about x), then apply platform orientation
-        const layFlat = new THREE.Quaternion().setFromEuler(new THREE.Euler(-Math.PI / 2, 0, 0));
+        // Build rotation: first lay flat (rotate +90 about x to map Y to Z), then apply platform orientation
+        const layFlat = new THREE.Quaternion().setFromEuler(new THREE.Euler(Math.PI / 2, 0, 0));
         const R = StewartKinematics.rotationMatrix(pose.roll, pose.pitch, pose.yaw);
         const platformQuat = new THREE.Quaternion().setFromRotationMatrix(
             new THREE.Matrix4().set(
-                R[0][0], R[0][1], R[0][2], 0,
-                R[2][0], R[2][1], R[2][2], 0,
-                R[1][0], R[1][1], R[1][2], 0,
+                R[0][0], R[0][2], R[0][1], 0,
+                R[2][0], R[2][2], R[2][1], 0,
+                R[1][0], R[1][2], R[1][1], 0,
                 0, 0, 0, 1
             )
         );
