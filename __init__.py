@@ -1,11 +1,12 @@
-# sil_sim — Stewart-Platform 6-DOF Software-in-the-Loop Simulator
 """
-Top-level package for the SIL simulator.
+integration — Bridge between the Python SIL simulator and the browser visualizer.
 
-Output-class discipline:
-    EXACT      — pure geometry / kinematics / math (no model assumptions)
-    ESTIMATED  — model-based (electrical, friction, efficiency estimates)
-    MEASURED   — real sensor data (NEVER produced by this simulator)
+Modules:
+    sim_clock.py      — SimulationClock: single source of truth for time
+    websocket_server.py — Async WebSocket publisher at ~60 Hz
+    protocol.py       — WebSocket message schema and serialization
 """
+from .sim_clock import SimulationClock
+from .protocol import build_ws_message, validate_message
 
-__version__ = "0.1.0"
+__all__ = ['SimulationClock', 'build_ws_message', 'validate_message']
