@@ -7,22 +7,24 @@
 
     let currentPose = StewartKinematics.neutralPose();
 
+    // Update simulation based on pose (IK is direct/exact — always converged)
     function updateSimulation(pose) {
         currentPose = pose;
         const result = StewartKinematics.inverseKinematics(pose);
         StewartRenderer.updatePlatform(result.basePoints, result.topPoints, pose);
-        StewartUI.updateReadouts(pose, result.lengths);
-
-        // If in pose mode, also update actuator sliders to reflect computed lengths
         StewartUI.setActuatorLengths(result.lengths);
+        window.__solverInfo = { converged: true, iterations: 1, residual: 0 };
+        StewartUI.updateReadouts(pose, result.lengths);
     }
 
     function onActuatorChange(targetLengths) {
-        // Use Newton-Raphson to find the pose that produces these actuator lengths
-        const solvedPose = StewartKinematics.solveFromLengths(targetLengths, currentPose);
+        // Use robust solver
+        const solved = StewartKinematics.solveFromLengths(targetLengths, currentPose);
+        const solvedPose = solved.pose;
         currentPose = solvedPose;
         StewartUI.setPose(solvedPose);
-
+        // expose solver info
+        window.__solverInfo = { converged: solved.converged, iterations: solved.iterations, residual: solved.residual };
         const result = StewartKinematics.inverseKinematics(solvedPose);
         StewartRenderer.updatePlatform(result.basePoints, result.topPoints, solvedPose);
         StewartUI.updateReadouts(solvedPose, result.lengths);

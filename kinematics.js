@@ -91,89 +91,107 @@ const StewartKinematics = (() => {
         return { x: 0, y: 0, z: NEUTRAL_HEIGHT, roll: 0, pitch: 0, yaw: 0 };
     }
 
-    // ---- Newton-Raphson solver for actuator-length control ----
-    // Given 6 target actuator lengths, find the platform pose.
-    // Uses numerical Jacobian + damped least-squares.
-    function solveFromLengths(targetLengths, initialPose, maxIter = 50, tol = 0.01) {
-        let pose = { ...initialPose };
-        const keys = ['x', 'y', 'z', 'roll', 'pitch', 'yaw'];
-        const delta = [0.1, 0.1, 0.1, 0.001, 0.001, 0.001]; // perturbation sizes
-
-        for (let iter = 0; iter < maxIter; iter++) {
-            const current = inverseKinematics(pose);
-            const error = targetLengths.map((tl, i) => tl - current.lengths[i]);
-
-            // Check convergence
-            const maxErr = Math.max(...error.map(Math.abs));
-            if (maxErr < tol) break;
-
-            // Numerical Jacobian (6x6)
-            const J = [];
-            for (let i = 0; i < 6; i++) {
-                J[i] = [];
-                for (let j = 0; j < 6; j++) {
-                    const perturbedPose = { ...pose };
-                    perturbedPose[keys[j]] += delta[j];
-                    const perturbedLengths = inverseKinematics(perturbedPose).lengths;
-                    J[i][j] = (perturbedLengths[i] - current.lengths[i]) / delta[j];
-                }
-            }
-
-            // Solve J * dp = error using damped pseudo-inverse
-            const dp = solveLinear6x6(J, error);
-            if (!dp) break;
-
-            // Apply update with clamping
-            keys.forEach((k, i) => {
-                let step = dp[i];
-                // Clamp step to avoid wild jumps
-                if (k === 'x' || k === 'y' || k === 'z') {
-                    step = Math.max(-50, Math.min(50, step));
-                } else {
-                    step = Math.max(-2, Math.min(2, step));
-                }
-                pose[k] += step;
-            });
-        }
-
-        return pose;
+    // Calculate condition number of the Jacobian (1/cond = singularity metric)
+    function conditionMetric(pose) {
+        const J = getJacobian(pose);
+        // Simplified: use determinant or singular value approximation
+        // For 6x6, we use the ratio of min/max singular values (SVD)
+        // Here we return a simple proxy: abs(det(J)) / (norm(J)^6)
+        return Math.abs(determinant6x6(J));
     }
 
-    // Simple 6x6 linear solve using Gaussian elimination with partial pivoting
-    function solveLinear6x6(A, b) {
-        const n = 6;
-        // Augmented matrix
-        const M = A.map((row, i) => [...row, b[i]]);
-
-        for (let col = 0; col < n; col++) {
-            // Partial pivoting
-            let maxVal = Math.abs(M[col][col]);
-            let maxRow = col;
-            for (let row = col + 1; row < n; row++) {
-                if (Math.abs(M[row][col]) > maxVal) {
-                    maxVal = Math.abs(M[row][col]);
-                    maxRow = row;
-                }
-            }
-            if (maxVal < 1e-12) return null; // Singular
-            [M[col], M[maxRow]] = [M[maxRow], M[col]];
-
-            // Eliminate below
-            for (let row = col + 1; row < n; row++) {
-                const factor = M[row][col] / M[col][col];
-                for (let j = col; j <= n; j++) {
-                    M[row][j] -= factor * M[col][j];
-                }
+    function getJacobian(pose) {
+        const J = [];
+        const current = inverseKinematics(pose);
+        const keys = ['x', 'y', 'z', 'roll', 'pitch', 'yaw'];
+        const delta = 1e-4;
+        for (let i = 0; i < 6; i++) {
+            J[i] = [];
+            for (let j = 0; j < 6; j++) {
+                const p = { ...pose };
+                p[keys[j]] += delta;
+                J[i][j] = (inverseKinematics(p).lengths[i] - current.lengths[i]) / delta;
             }
         }
+        return J;
+    }
 
-        // Back substitution
+    function determinant6x6(m) {
+        // Basic Gaussian elimination for determinant
+        let det = 1;
+        const A = m.map(row => [...row]);
+        for (let i = 0; i < 6; i++) {
+            let pivot = i;
+            for (let j = i + 1; j < 6; j++) if (Math.abs(A[j][i]) > Math.abs(A[pivot][i])) pivot = j;
+            [A[i], A[pivot]] = [A[pivot], A[i]];
+            if (pivot !== i) det *= -1;
+            if (Math.abs(A[i][i]) < 1e-12) return 0;
+            det *= A[i][i];
+            for (let j = i + 1; j < 6; j++) {
+                const f = A[j][i] / A[i][i];
+                for (let k = i + 1; k < 6; k++) A[j][k] -= f * A[i][k];
+            }
+        }
+        return det;
+    }
+
+    function solveFromLengths(targetLengths, initialPose, maxIter = 100, tol = 1e-4) {
+        let pose = { ...initialPose };
+        const keys = ['x', 'y', 'z', 'roll', 'pitch', 'yaw'];
+        let converged = false;
+        let iterations = 0;
+
+        for (let iter = 0; iter < maxIter; iter++) {
+            iterations++;
+            const current = inverseKinematics(pose);
+            const error = targetLengths.map((tl, i) => tl - current.lengths[i]);
+            const mse = error.reduce((a, b) => a + b * b, 0) / 6;
+
+            if (mse < tol) {
+                converged = true;
+                break;
+            }
+
+            const J = getJacobian(pose);
+            const JT = J[0].map((_, i) => J.map(row => row[i]));
+            const JTJ = multiply6x6(JT, J);
+            const lambda = 0.01;
+            for (let i = 0; i < 6; i++) JTJ[i][i] += lambda * lambda;
+            const JTe = JT.map(row => row.reduce((sum, val, i) => sum + val * error[i], 0));
+            const dp = solveLinear6x6(JTJ, JTe);
+
+            if (!dp) break;
+            keys.forEach((k, i) => pose[k] += dp[i]);
+        }
+        return { pose, converged, iterations };
+    }
+
+    function multiply6x6(A, B) {
+        const C = Array.from({ length: 6 }, () => new Array(6).fill(0));
+        for (let i = 0; i < 6; i++)
+            for (let j = 0; j < 6; j++)
+                for (let k = 0; k < 6; k++) C[i][j] += A[i][k] * B[k][j];
+        return C;
+    }
+
+    function solveLinear6x6(A, b) {
+        const n = 6;
+        const M = A.map((row, i) => [...row, b[i]]);
+        for (let col = 0; col < n; col++) {
+            let maxRow = col;
+            for (let row = col + 1; row < n; row++)
+                if (Math.abs(M[row][col]) > Math.abs(M[maxRow][col])) maxRow = row;
+            [M[col], M[maxRow]] = [M[maxRow], M[col]];
+            if (Math.abs(M[col][col]) < 1e-15) return null;
+            for (let row = col + 1; row < n; row++) {
+                const f = M[row][col] / M[col][col];
+                for (let j = col; j <= n; j++) M[row][j] -= f * M[col][j];
+            }
+        }
         const x = new Array(n);
         for (let i = n - 1; i >= 0; i--) {
             x[i] = M[i][n];
-            for (let j = i + 1; j < n; j++) {
-                x[i] -= M[i][j] * x[j];
-            }
+            for (let j = i + 1; j < n; j++) x[i] -= M[i][j] * x[j];
             x[i] /= M[i][i];
         }
         return x;
@@ -191,5 +209,6 @@ const StewartKinematics = (() => {
         inverseKinematics,
         neutralPose,
         solveFromLengths,
+        conditionMetric,
     };
 })();

@@ -11,23 +11,26 @@ const StewartUI = (() => {
     const POSE_LIMITS = {
         x: { min: -500, max: 500, step: 5, default: 0, unit: 'mm' },
         y: { min: -500, max: 500, step: 5, default: 0, unit: 'mm' },
-        z: { min: 1170, max: 2170, step: 10, default: 1670, unit: 'mm' },
+        z: { min: 1170, max: 2170, step: 10, default: StewartKinematics.neutralPose().z, unit: 'mm' },
         roll: { min: -30, max: 30, step: 0.5, default: 0, unit: '°' },
         pitch: { min: -30, max: 30, step: 0.5, default: 0, unit: '°' },
         yaw: { min: -30, max: 30, step: 0.5, default: 0, unit: '°' },
     };
 
-    const PRESETS = {
-        'Neutral': { x: 0, y: 0, z: 1670, roll: 0, pitch: 0, yaw: 0 },
-        'Heave +': { x: 0, y: 0, z: 1870, roll: 0, pitch: 0, yaw: 0 },
-        'Heave -': { x: 0, y: 0, z: 1470, roll: 0, pitch: 0, yaw: 0 },
-        'Roll +': { x: 0, y: 0, z: 1670, roll: 15, pitch: 0, yaw: 0 },
-        'Roll -': { x: 0, y: 0, z: 1670, roll: -15, pitch: 0, yaw: 0 },
-        'Pitch +': { x: 0, y: 0, z: 1670, roll: 0, pitch: 15, yaw: 0 },
-        'Pitch -': { x: 0, y: 0, z: 1670, roll: 0, pitch: -15, yaw: 0 },
-        'Yaw +': { x: 0, y: 0, z: 1670, roll: 0, pitch: 0, yaw: 15 },
-        'Yaw -': { x: 0, y: 0, z: 1670, roll: 0, pitch: 0, yaw: -15 },
-    };
+    const PRESETS = (() => {
+        const nz = StewartKinematics.neutralPose().z;
+        return {
+            'Neutral': { x: 0, y: 0, z: nz, roll: 0, pitch: 0, yaw: 0 },
+            'Heave +': { x: 0, y: 0, z: nz + 200, roll: 0, pitch: 0, yaw: 0 },
+            'Heave -': { x: 0, y: 0, z: nz - 200, roll: 0, pitch: 0, yaw: 0 },
+            'Roll +': { x: 0, y: 0, z: nz, roll: 5, pitch: 0, yaw: 0 },
+            'Roll -': { x: 0, y: 0, z: nz, roll: -5, pitch: 0, yaw: 0 },
+            'Pitch +': { x: 0, y: 0, z: nz, roll: 0, pitch: 5, yaw: 0 },
+            'Pitch -': { x: 0, y: 0, z: nz, roll: 0, pitch: -5, yaw: 0 },
+            'Yaw +': { x: 0, y: 0, z: nz, roll: 0, pitch: 0, yaw: 5 },
+            'Yaw -': { x: 0, y: 0, z: nz, roll: 0, pitch: 0, yaw: -5 },
+        };
+    })();
 
     let poseSliders = {};
     let actuatorSliders = {};
@@ -49,6 +52,11 @@ const StewartUI = (() => {
         buildPresetButtons();
         buildReadouts();
         buildLimitControls();
+        buildResetButton();
+
+        // Initialize actuator sliders to neutral lengths
+        const neutralLengths = StewartKinematics.inverseKinematics(StewartKinematics.neutralPose()).lengths;
+        setActuatorLengths(neutralLengths);
 
         // Start in pose mode
         setMode('pose');
@@ -174,6 +182,20 @@ const StewartUI = (() => {
         container.appendChild(grid);
     }
 
+    function buildResetButton() {
+        const container = document.getElementById('presets-section');
+        const resetBtn = document.createElement('button');
+        resetBtn.className = 'preset-btn reset-btn';
+        resetBtn.textContent = 'Reset to Neutral';
+        resetBtn.addEventListener('click', () => {
+            setMode('pose');
+            const neutral = StewartKinematics.neutralPose();
+            setPose(neutral);
+            if (onPoseChange) onPoseChange(neutral);
+        });
+        container.appendChild(resetBtn);
+    }
+
     function buildReadouts() {
         const container = document.getElementById('readouts-section');
 
@@ -198,6 +220,20 @@ const StewartUI = (() => {
             poseGrid.appendChild(item);
             poseDisplays[name.toLowerCase()] = value;
         });
+        // Solver status readout
+        const statusItem = document.createElement('div');
+        statusItem.className = 'readout-item';
+        const statusLabel = document.createElement('span');
+        statusLabel.className = 'readout-label';
+        statusLabel.textContent = 'Solver';
+        const statusValue = document.createElement('span');
+        statusValue.className = 'readout-value';
+        statusValue.id = 'readout-solver';
+        statusValue.textContent = '—';
+        statusItem.appendChild(statusLabel);
+        statusItem.appendChild(statusValue);
+        poseGrid.appendChild(statusItem);
+        poseDisplays['solver'] = statusValue;
         poseSection.appendChild(poseGrid);
         container.appendChild(poseSection);
 
@@ -331,6 +367,13 @@ const StewartUI = (() => {
                 lengthDisplays[i].classList.add('warning');
             }
         });
+
+        // Update solver status if provided via global variable
+        if (window.__solverInfo) {
+            const info = window.__solverInfo;
+            const statusText = info.converged ? '✓ Converged' : '⚠ No convergence';
+            poseDisplays['solver'].textContent = `${statusText} (Iter ${info.iterations})`;
+        }
 
         warningContainer.innerHTML = warnings.length > 0
             ? warnings.map(w => `<div class="warning-msg">${w}</div>`).join('')
