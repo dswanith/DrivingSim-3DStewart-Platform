@@ -1,6 +1,6 @@
 # Stewart-Platform 6-DOF Software-in-the-Loop Simulator
 
-A Software-in-the-Loop (SIL) simulator for a 1/5-scale 6-DOF Stewart-platform motion
+A Software-in-the-Loop (SIL) simulator for a 1/1-scale 6-DOF Stewart-platform motion
 simulator integrated with the CARLA driving simulator. This software takes vehicle
 telemetry and propagates it through the full control pipeline — motion cueing, inverse
 kinematics, actuator control, and electrical estimation — producing every value the
