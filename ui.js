@@ -4,9 +4,6 @@
 
 const StewartUI = (() => {
     let onPoseChange = null;
-    let onActuatorChange = null;
-    let onModeChange = null;
-    let controlMode = 'pose'; // 'pose' or 'actuator'
 
     const POSE_LIMITS = {
         x: { min: -500, max: 500, step: 5, default: 0, unit: 'mm' },
@@ -33,98 +30,42 @@ const StewartUI = (() => {
     })();
 
     let poseSliders = {};
-    let actuatorSliders = {};
-    let lengthDisplays = {};
     let poseDisplays = {};
+    let deltaRows = [];        // [{bar, deltaVal, absVal}]
     let minLengthInput, maxLengthInput;
     let warningContainer;
-    let poseControlPanel, actuatorControlPanel;
-    let modeToggleBtn;
 
+    // ---- Init ----
     function init(callbacks) {
         onPoseChange = callbacks.onPoseChange;
-        onActuatorChange = callbacks.onActuatorChange;
-        onModeChange = callbacks.onModeChange;
-
-        buildModeToggle();
         buildPoseControls();
-        buildActuatorControls();
         buildPresetButtons();
         buildReadouts();
+        buildDeltaTable();
+        buildEquationsPanel();
         buildLimitControls();
-        buildResetButton();
-
-        // Initialize actuator sliders to neutral lengths
-        const neutralLengths = StewartKinematics.inverseKinematics(StewartKinematics.neutralPose()).lengths;
-        setActuatorLengths(neutralLengths);
-
-        // Start in pose mode
-        setMode('pose');
     }
 
-    function buildModeToggle() {
-        const section = document.getElementById('mode-toggle-section');
-        const btnGroup = document.createElement('div');
-        btnGroup.className = 'mode-toggle-group';
-
-        const poseBtn = document.createElement('button');
-        poseBtn.textContent = 'Pose Control';
-        poseBtn.className = 'mode-btn active';
-        poseBtn.id = 'mode-pose-btn';
-        poseBtn.addEventListener('click', () => setMode('pose'));
-
-        const actBtn = document.createElement('button');
-        actBtn.textContent = 'Actuator Control';
-        actBtn.className = 'mode-btn';
-        actBtn.id = 'mode-act-btn';
-        actBtn.addEventListener('click', () => setMode('actuator'));
-
-        btnGroup.appendChild(poseBtn);
-        btnGroup.appendChild(actBtn);
-        section.appendChild(btnGroup);
-    }
-
-    function setMode(mode) {
-        controlMode = mode;
-        document.getElementById('mode-pose-btn').classList.toggle('active', mode === 'pose');
-        document.getElementById('mode-act-btn').classList.toggle('active', mode === 'actuator');
-
-        if (poseControlPanel) poseControlPanel.style.display = mode === 'pose' ? 'block' : 'none';
-        if (actuatorControlPanel) actuatorControlPanel.style.display = mode === 'actuator' ? 'block' : 'none';
-
-        if (onModeChange) onModeChange(mode);
-    }
-
+    // ---- Pose Sliders ----
     function buildPoseControls() {
-        poseControlPanel = document.getElementById('pose-controls');
-        const labels = { x: 'X Displacement', y: 'Y Displacement', z: 'Z Height', roll: 'Roll', pitch: 'Pitch', yaw: 'Yaw' };
+        const panel = document.getElementById('pose-controls');
+        const labels = {
+            x: 'X Lateral',
+            y: 'Y Longitudinal',
+            z: 'Z Height',
+            roll: 'Roll (φ)',
+            pitch: 'Pitch (θ)',
+            yaw: 'Yaw (ψ)',
+        };
 
         Object.keys(POSE_LIMITS).forEach(key => {
             const lim = POSE_LIMITS[key];
-            const row = createSliderRow(labels[key], key, lim, (val) => {
-                if (controlMode === 'pose' && onPoseChange) {
-                    onPoseChange(getCurrentPose());
-                }
+            const row = createSliderRow(labels[key], key, lim, () => {
+                if (onPoseChange) onPoseChange(getCurrentPose());
             });
-            poseControlPanel.appendChild(row);
+            panel.appendChild(row);
             poseSliders[key] = row.querySelector('input[type="range"]');
         });
-    }
-
-    function buildActuatorControls() {
-        actuatorControlPanel = document.getElementById('actuator-controls');
-
-        for (let i = 0; i < 6; i++) {
-            const key = `L${i + 1}`;
-            const lim = { min: 800, max: 2500, step: 10, default: 1670, unit: 'mm' };
-            const row = createSliderRow(key, `act_${i}`, lim, (val) => {
-                if (controlMode === 'actuator' && onActuatorChange) {
-                    onActuatorChange(getCurrentActuatorLengths());
-                }
-            });
-            actuatorControlPanel.appendChild(row);
-            actuatorSliders[i] = row.querySelector('input[type="range"]');
-        }
     }
 
     function createSliderRow(label, id, limits, onChange) {
@@ -162,6 +103,7 @@ const StewartUI = (() => {
         return row;
     }
 
+    // ---- Presets ----
     function buildPresetButtons() {
         const container = document.getElementById('presets-section');
         const grid = document.createElement('div');
@@ -172,7 +114,6 @@ const StewartUI = (() => {
             btn.className = 'preset-btn';
             btn.textContent = name;
             btn.addEventListener('click', () => {
-                setMode('pose');
                 const preset = PRESETS[name];
                 setPose(preset);
                 if (onPoseChange) onPoseChange(preset);
@@ -180,15 +121,14 @@ const StewartUI = (() => {
             grid.appendChild(btn);
         });
         container.appendChild(grid);
-    }
 
-    function buildResetButton() {
-        const container = document.getElementById('presets-section');
+        // Reset to Neutral button
         const resetBtn = document.createElement('button');
         resetBtn.className = 'preset-btn reset-btn';
-        resetBtn.textContent = 'Reset to Neutral';
+        resetBtn.style.marginTop = '8px';
+        resetBtn.style.gridColumn = '1 / -1';
+        resetBtn.textContent = '⟳  Reset to Neutral';
         resetBtn.addEventListener('click', () => {
-            setMode('pose');
             const neutral = StewartKinematics.neutralPose();
             setPose(neutral);
             if (onPoseChange) onPoseChange(neutral);
@@ -196,15 +136,16 @@ const StewartUI = (() => {
         container.appendChild(resetBtn);
     }
 
+    // ---- Pose / Solver Readouts ----
     function buildReadouts() {
         const container = document.getElementById('readouts-section');
 
-        // Pose readout
         const poseSection = document.createElement('div');
         poseSection.className = 'readout-group';
         poseSection.innerHTML = '<h4>Current Pose</h4>';
         const poseGrid = document.createElement('div');
         poseGrid.className = 'readout-grid';
+
         ['X', 'Y', 'Z', 'Roll', 'Pitch', 'Yaw'].forEach(name => {
             const item = document.createElement('div');
             item.className = 'readout-item';
@@ -220,46 +161,21 @@ const StewartUI = (() => {
             poseGrid.appendChild(item);
             poseDisplays[name.toLowerCase()] = value;
         });
-        // Solver status readout
+
+        // Solver status
         const statusItem = document.createElement('div');
         statusItem.className = 'readout-item';
-        const statusLabel = document.createElement('span');
-        statusLabel.className = 'readout-label';
-        statusLabel.textContent = 'Solver';
+        statusItem.innerHTML = `<span class="readout-label">Solver</span>`;
         const statusValue = document.createElement('span');
         statusValue.className = 'readout-value';
         statusValue.id = 'readout-solver';
-        statusValue.textContent = '—';
-        statusItem.appendChild(statusLabel);
+        statusValue.textContent = '✓ IK (exact)';
         statusItem.appendChild(statusValue);
         poseGrid.appendChild(statusItem);
         poseDisplays['solver'] = statusValue;
+
         poseSection.appendChild(poseGrid);
         container.appendChild(poseSection);
-
-        // Actuator lengths readout
-        const actSection = document.createElement('div');
-        actSection.className = 'readout-group';
-        actSection.innerHTML = '<h4>Actuator Lengths</h4>';
-        const actGrid = document.createElement('div');
-        actGrid.className = 'readout-grid';
-        for (let i = 0; i < 6; i++) {
-            const item = document.createElement('div');
-            item.className = 'readout-item';
-            const label = document.createElement('span');
-            label.className = 'readout-label';
-            label.textContent = `L${i + 1}`;
-            const value = document.createElement('span');
-            value.className = 'readout-value';
-            value.id = `readout-l${i + 1}`;
-            value.textContent = '0.0';
-            item.appendChild(label);
-            item.appendChild(value);
-            actGrid.appendChild(item);
-            lengthDisplays[i] = value;
-        }
-        actSection.appendChild(actGrid);
-        container.appendChild(actSection);
 
         // Warning area
         warningContainer = document.createElement('div');
@@ -268,9 +184,114 @@ const StewartUI = (() => {
         container.appendChild(warningContainer);
     }
 
+    // ---- Actuator Delta Table ----
+    function buildDeltaTable() {
+        const container = document.getElementById('delta-table');
+        const ACTUATOR_COLORS = ['#ff4444', '#44aaff', '#44ff88', '#ffaa22', '#dd44ff', '#ffff44'];
+        const neutralL = StewartKinematics.neutralLengths();
+
+        const table = document.createElement('table');
+        table.className = 'delta-table';
+        table.innerHTML = `
+            <thead>
+                <tr>
+                    <th>Act.</th>
+                    <th>L (mm)</th>
+                    <th>ΔL (mm)</th>
+                    <th>Extension</th>
+                </tr>
+            </thead>
+        `;
+        const tbody = document.createElement('tbody');
+
+        for (let i = 0; i < 6; i++) {
+            const tr = document.createElement('tr');
+            const color = ACTUATOR_COLORS[i];
+
+            const tdName = document.createElement('td');
+            tdName.innerHTML = `<span class="act-badge" style="color:${color}">L${i + 1}</span>`;
+
+            const tdAbs = document.createElement('td');
+            const absVal = document.createElement('span');
+            absVal.className = 'delta-abs';
+            absVal.textContent = neutralL[i].toFixed(1);
+            tdAbs.appendChild(absVal);
+
+            const tdDelta = document.createElement('td');
+            const deltaVal = document.createElement('span');
+            deltaVal.className = 'delta-val';
+            deltaVal.textContent = '0.00';
+            tdDelta.appendChild(deltaVal);
+
+            const tdBar = document.createElement('td');
+            const barWrap = document.createElement('div');
+            barWrap.className = 'delta-bar-wrap';
+            const barFill = document.createElement('div');
+            barFill.className = 'delta-bar-fill';
+            barWrap.appendChild(barFill);
+            tdBar.appendChild(barWrap);
+
+            tr.appendChild(tdName);
+            tr.appendChild(tdAbs);
+            tr.appendChild(tdDelta);
+            tr.appendChild(tdBar);
+            tbody.appendChild(tr);
+
+            deltaRows.push({ absVal, deltaVal, barFill });
+        }
+
+        table.appendChild(tbody);
+        container.appendChild(table);
+    }
+
+    // ---- Equations Panel ----
+    function buildEquationsPanel() {
+        const container = document.getElementById('equations-content');
+        container.innerHTML = `
+<div class="eq-card">
+    <div class="eq-title">Forward Transform</div>
+    <div class="eq-body">
+        <div class="eq-line"><span class="eq-sym">p<sub>i</sub></span> = <span class="eq-sym">T</span> + <span class="eq-sym">R</span> · <span class="eq-sym">P<sub>i</sub></span></div>
+        <div class="eq-where">where</div>
+        <div class="eq-line"><span class="eq-sym">T</span> = [x, y, z]<sup>T</sup> &nbsp;(translation)</div>
+        <div class="eq-line"><span class="eq-sym">R</span> = R<sub>z</sub>(ψ) · R<sub>y</sub>(θ) · R<sub>x</sub>(φ)</div>
+        <div class="eq-line eq-indent"><span class="eq-sym">φ</span> = Roll &nbsp; <span class="eq-sym">θ</span> = Pitch &nbsp; <span class="eq-sym">ψ</span> = Yaw</div>
+    </div>
+</div>
+
+<div class="eq-card">
+    <div class="eq-title">Rotation Matrix (ZYX Euler)</div>
+    <div class="eq-body">
+        <div class="eq-line"><span class="eq-sym">R</span> =</div>
+        <div class="eq-matrix">
+            <div>c<sub>ψ</sub>c<sub>θ</sub></div><div>c<sub>ψ</sub>s<sub>θ</sub>s<sub>φ</sub>−s<sub>ψ</sub>c<sub>φ</sub></div><div>c<sub>ψ</sub>s<sub>θ</sub>c<sub>φ</sub>+s<sub>ψ</sub>s<sub>φ</sub></div>
+            <div>s<sub>ψ</sub>c<sub>θ</sub></div><div>s<sub>ψ</sub>s<sub>θ</sub>s<sub>φ</sub>+c<sub>ψ</sub>c<sub>φ</sub></div><div>s<sub>ψ</sub>s<sub>θ</sub>c<sub>φ</sub>−c<sub>ψ</sub>s<sub>φ</sub></div>
+            <div>−s<sub>θ</sub></div><div>c<sub>θ</sub>s<sub>φ</sub></div><div>c<sub>θ</sub>c<sub>φ</sub></div>
+        </div>
+    </div>
+</div>
+
+<div class="eq-card">
+    <div class="eq-title">Inverse Kinematics (Actuator Length)</div>
+    <div class="eq-body">
+        <div class="eq-line"><span class="eq-sym">L<sub>i</sub></span> = ‖ <span class="eq-sym">p<sub>i</sub></span> − <span class="eq-sym">B<sub>i</sub></span> ‖</div>
+        <div class="eq-where">where <span class="eq-sym">B<sub>i</sub></span> = base attachment point</div>
+    </div>
+</div>
+
+<div class="eq-card">
+    <div class="eq-title">Displacement from Neutral</div>
+    <div class="eq-body">
+        <div class="eq-line"><span class="eq-sym">ΔL<sub>i</sub></span> = <span class="eq-sym">L<sub>i</sub></span> − <span class="eq-sym">L<sub>i</sub><sup>0</sup></span></div>
+        <div class="eq-where">L<sub>i</sub><sup>0</sup> = neutral length (Z = ${StewartKinematics.NEUTRAL_HEIGHT.toFixed(3)} mm)</div>
+    </div>
+</div>
+        `;
+    }
+
+    // ---- Limit Controls ----
     function buildLimitControls() {
         const container = document.getElementById('limits-section');
-
         const row = document.createElement('div');
         row.className = 'limit-row';
 
@@ -303,6 +324,7 @@ const StewartUI = (() => {
         container.appendChild(row);
     }
 
+    // ---- Public Getters / Setters ----
     function getCurrentPose() {
         return {
             x: parseFloat(poseSliders.x.value),
@@ -312,14 +334,6 @@ const StewartUI = (() => {
             pitch: parseFloat(poseSliders.pitch.value),
             yaw: parseFloat(poseSliders.yaw.value),
         };
-    }
-
-    function getCurrentActuatorLengths() {
-        const lengths = [];
-        for (let i = 0; i < 6; i++) {
-            lengths.push(parseFloat(actuatorSliders[i].value));
-        }
-        return lengths;
     }
 
     function setPose(pose) {
@@ -333,47 +347,64 @@ const StewartUI = (() => {
         });
     }
 
-    function setActuatorLengths(lengths) {
-        lengths.forEach((l, i) => {
-            if (actuatorSliders[i]) {
-                actuatorSliders[i].value = l.toFixed(1);
-                const display = actuatorSliders[i].parentElement.querySelector('.slider-value');
-                if (display) display.textContent = `${l.toFixed(1)} mm`;
-            }
-        });
-    }
-
+    // ---- Update Readouts ----
     function updateReadouts(pose, lengths) {
         const units = { x: ' mm', y: ' mm', z: ' mm', roll: '°', pitch: '°', yaw: '°' };
-        Object.keys(poseDisplays).forEach(key => {
-            poseDisplays[key].textContent = (pose[key] !== undefined ? pose[key].toFixed(2) : '—') + (units[key] || '');
-        });
-
-        const minLen = parseFloat(minLengthInput.value) || 0;
-        const maxLen = parseFloat(maxLengthInput.value) || Infinity;
-        let warnings = [];
-
-        lengths.forEach((l, i) => {
-            lengthDisplays[i].textContent = l.toFixed(2) + ' mm';
-            lengthDisplays[i].classList.remove('warning', 'danger');
-
-            if (l < minLen) {
-                lengthDisplays[i].classList.add('danger');
-                warnings.push(`⚠ L${i + 1} (${l.toFixed(1)} mm) below minimum ${minLen} mm`);
-            } else if (l > maxLen) {
-                lengthDisplays[i].classList.add('danger');
-                warnings.push(`⚠ L${i + 1} (${l.toFixed(1)} mm) exceeds maximum ${maxLen} mm`);
-            } else if (l < minLen + 50 || l > maxLen - 50) {
-                lengthDisplays[i].classList.add('warning');
+        ['x', 'y', 'z', 'roll', 'pitch', 'yaw'].forEach(key => {
+            if (poseDisplays[key]) {
+                poseDisplays[key].textContent = (pose[key] !== undefined ? pose[key].toFixed(2) : '—') + (units[key] || '');
             }
         });
 
-        // Update solver status if provided via global variable
-        if (window.__solverInfo) {
-            const info = window.__solverInfo;
-            const statusText = info.converged ? '✓ Converged' : '⚠ No convergence';
-            poseDisplays['solver'].textContent = `${statusText} (Iter ${info.iterations})`;
-        }
+        // Actuator limit warnings
+        const minLen = parseFloat(minLengthInput.value) || 0;
+        const maxLen = parseFloat(maxLengthInput.value) || Infinity;
+        const warnings = [];
+
+        // Delta table
+        const neutralL = StewartKinematics.neutralLengths();
+        const BAR_MAX = 300; // mm scale for bars
+
+        lengths.forEach((l, i) => {
+            const delta = l - neutralL[i];
+            const absEl = deltaRows[i].absVal;
+            const deltaEl = deltaRows[i].deltaVal;
+            const barEl = deltaRows[i].barFill;
+
+            absEl.textContent = l.toFixed(1);
+
+            const sign = delta >= 0 ? '+' : '';
+            deltaEl.textContent = `${sign}${delta.toFixed(2)}`;
+            deltaEl.classList.remove('delta-pos', 'delta-neg', 'delta-zero');
+            if (Math.abs(delta) < 0.05) {
+                deltaEl.classList.add('delta-zero');
+            } else if (delta > 0) {
+                deltaEl.classList.add('delta-pos');
+            } else {
+                deltaEl.classList.add('delta-neg');
+            }
+
+            // Bar: centre at 50%, width proportional to |delta|, direction by sign
+            const pct = Math.min(Math.abs(delta) / BAR_MAX, 1) * 50;
+            if (delta >= 0) {
+                barEl.style.left = '50%';
+                barEl.style.right = 'auto';
+                barEl.style.width = `${pct}%`;
+                barEl.style.background = 'var(--accent-green)';
+            } else {
+                barEl.style.right = '50%';
+                barEl.style.left = 'auto';
+                barEl.style.width = `${pct}%`;
+                barEl.style.background = 'var(--accent-red)';
+            }
+
+            // Limit warnings
+            if (l < minLen) {
+                warnings.push(`⚠ L${i + 1} (${l.toFixed(1)} mm) below min ${minLen} mm`);
+            } else if (l > maxLen) {
+                warnings.push(`⚠ L${i + 1} (${l.toFixed(1)} mm) exceeds max ${maxLen} mm`);
+            }
+        });
 
         warningContainer.innerHTML = warnings.length > 0
             ? warnings.map(w => `<div class="warning-msg">${w}</div>`).join('')
@@ -390,11 +421,8 @@ const StewartUI = (() => {
     return {
         init,
         getCurrentPose,
-        getCurrentActuatorLengths,
         setPose,
-        setActuatorLengths,
         updateReadouts,
-        setMode,
         getActuatorLimits,
         POSE_LIMITS,
     };

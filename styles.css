@@ -408,6 +408,141 @@ html, body {
     box-shadow: 0 0 8px rgba(68, 136, 255, 0.2);
 }
 
+/* ---- Delta Table ---- */
+.delta-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 11px;
+    font-family: 'JetBrains Mono', monospace;
+}
+
+.delta-table thead th {
+    text-align: left;
+    color: var(--text-dim);
+    font-size: 10px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.8px;
+    padding: 4px 6px;
+    border-bottom: 1px solid var(--border);
+}
+
+.delta-table tbody tr {
+    border-bottom: 1px solid rgba(42, 45, 106, 0.3);
+    transition: background 0.15s;
+}
+
+.delta-table tbody tr:hover {
+    background: var(--bg-hover);
+}
+
+.delta-table td {
+    padding: 6px 6px;
+    vertical-align: middle;
+}
+
+.act-badge {
+    font-weight: 700;
+    font-size: 12px;
+    text-shadow: 0 0 8px currentColor;
+}
+
+.delta-abs {
+    color: var(--text-secondary);
+    font-size: 11px;
+}
+
+.delta-val {
+    font-weight: 600;
+    font-size: 12px;
+    min-width: 66px;
+    display: inline-block;
+    transition: color 0.2s;
+}
+
+.delta-val.delta-pos  { color: var(--accent-green); }
+.delta-val.delta-neg  { color: var(--accent-red); }
+.delta-val.delta-zero { color: var(--text-dim); }
+
+.delta-bar-wrap {
+    position: relative;
+    height: 6px;
+    background: rgba(42, 45, 106, 0.5);
+    border-radius: 3px;
+    overflow: hidden;
+    min-width: 60px;
+}
+
+.delta-bar-fill {
+    position: absolute;
+    top: 0;
+    height: 100%;
+    border-radius: 3px;
+    transition: width 0.18s ease, background 0.18s ease;
+    width: 0%;
+    left: 50%;
+}
+
+/* ---- Equations Panel ---- */
+.eq-card {
+    background: var(--bg-card);
+    border: 1px solid rgba(42, 45, 106, 0.6);
+    border-radius: var(--radius-sm);
+    padding: 12px 14px;
+    margin-bottom: 8px;
+}
+
+.eq-title {
+    font-size: 10px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 1.2px;
+    color: var(--accent-blue);
+    margin-bottom: 8px;
+}
+
+.eq-body {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 12px;
+    color: var(--text-primary);
+    line-height: 1.7;
+}
+
+.eq-line {
+    margin-bottom: 2px;
+}
+
+.eq-indent {
+    padding-left: 16px;
+    color: var(--text-secondary);
+}
+
+.eq-where {
+    font-size: 10px;
+    color: var(--text-dim);
+    margin: 4px 0 2px;
+    font-style: italic;
+}
+
+.eq-sym {
+    color: var(--accent-cyan);
+    font-style: italic;
+}
+
+.eq-matrix {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 2px 8px;
+    margin: 6px 0 4px;
+    padding: 8px;
+    background: var(--bg-primary);
+    border-radius: 6px;
+    font-size: 10.5px;
+    color: var(--text-secondary);
+    border: 1px solid var(--border);
+    text-align: center;
+}
+
 /* ---- Responsive ---- */
 @media (max-width: 900px) {
     #app {
@@ -422,3 +557,4 @@ html, body {
         border-top: 1px solid var(--border);
     }
 }
+

@@ -91,6 +91,15 @@ const StewartKinematics = (() => {
         return { x: 0, y: 0, z: NEUTRAL_HEIGHT, roll: 0, pitch: 0, yaw: 0 };
     }
 
+    // ---- Neutral actuator lengths (cached) ----
+    let _neutralLengths = null;
+    function neutralLengths() {
+        if (!_neutralLengths) {
+            _neutralLengths = inverseKinematics(neutralPose()).lengths;
+        }
+        return _neutralLengths;
+    }
+
     // Calculate condition number of the Jacobian (1/cond = singularity metric)
     function conditionMetric(pose) {
         const J = getJacobian(pose);
@@ -208,6 +217,7 @@ const StewartKinematics = (() => {
         forwardTransform,
         inverseKinematics,
         neutralPose,
+        neutralLengths,
         solveFromLengths,
         conditionMetric,
     };

@@ -1,12 +1,15 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Stewart Platform 6-DOF Kinematics Simulator</title>
-    <meta name="description" content="Interactive 3D Stewart platform inverse kinematics simulator with six actuators, real-time visualization, and manual control.">
+    <meta name="description"
+        content="Interactive 3D Stewart platform inverse kinematics simulator with six actuators, real-time visualization, and manual control.">
     <link rel="stylesheet" href="styles.css">
 </head>
+
 <body>
     <div id="app">
         <!-- 3D Viewport -->
@@ -23,21 +26,10 @@
                 <h2>Platform Controls</h2>
             </div>
 
-            <!-- Mode Toggle -->
-            <div class="panel-section" id="mode-toggle-section">
-                <h3>Control Mode</h3>
-            </div>
-
             <!-- Pose Sliders -->
             <div class="panel-section" id="pose-controls-section">
                 <h3>Pose Control</h3>
                 <div id="pose-controls"></div>
-            </div>
-
-            <!-- Actuator Sliders -->
-            <div class="panel-section" id="actuator-controls-section">
-                <h3>Actuator Control</h3>
-                <div id="actuator-controls"></div>
             </div>
 
             <!-- Presets -->
@@ -45,9 +37,21 @@
                 <h3>Presets</h3>
             </div>
 
-            <!-- Readouts -->
+            <!-- Current Pose Readout -->
             <div class="panel-section" id="readouts-section">
                 <h3>Status</h3>
+            </div>
+
+            <!-- Actuator Delta -->
+            <div class="panel-section" id="delta-section">
+                <h3>Actuator Displacement from Neutral</h3>
+                <div id="delta-table"></div>
+            </div>
+
+            <!-- Equations -->
+            <div class="panel-section" id="equations-section">
+                <h3>Kinematics Equations</h3>
+                <div id="equations-content"></div>
             </div>
 
             <!-- Actuator Limits -->
@@ -67,4 +71,5 @@
     <script src="ui.js"></script>
     <script src="main.js"></script>
 </body>
+
 </html>
