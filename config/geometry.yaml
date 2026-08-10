@@ -16,37 +16,42 @@ euler_convention: "ZYX_intrinsic"
 body_frame: "automotive"  # X-forward, Y-left, Z-up
 
 # --- Base plate (fixed) ---
-# Confirmed: ⌀400 mm = 0.400 m diameter, 8 mm 6061-Al
 base:
-  plate_diameter_m: 0.400                  # CONFIRMED — from hardware spec
-  # Joint Cartesian coordinates in base-local frame (Z=0). 
-  # X (forward), Y (left). CONFIRMED from M2 CAD
+  plate_diameter_m: 2.297                  # 2 × 1148.6 mm outer radius
+  # Joint Cartesian coordinates in base-local frame (Z=0).
+  # X = left/right, Y = front/back. CAD-confirmed.
+  # Pairing: B1↔P1, B2↔P2, B3↔P3, B4↔P4, B5↔P5, B6↔P6
   joints_xy_m:
-    - [ 0.000000,  1.101400]    # B1 (90°)
-    - [ 0.000000,  1.148600]    # B2 (90°)
-    - [-0.953840, -0.550700]    # B3 (210°)
-    - [-0.994717, -0.574300]    # B4 (210°)
-    - [ 0.953840, -0.550700]    # B5 (330°)
-    - [ 0.994717, -0.574300]    # B6 (330°)
+    - [ 0.000000,  1.101400]    # B1 — North, inner
+    - [ 0.000000,  1.148600]    # B2 — North, outer
+    - [-0.953840, -0.550700]    # B3 — SW, inner
+    - [-0.994717, -0.574300]    # B4 — SW, outer
+    - [ 0.953840, -0.550700]    # B5 — SE, inner
+    - [ 0.994717, -0.574300]    # B6 — SE, outer
 
 # --- Top plate (moving platform) ---
-# Confirmed: ⌀250 mm = 0.250 m diameter, 8 mm 6061-Al, 4× M8 seat mounts
 platform:
-  plate_diameter_m: 0.250                  # CONFIRMED — from hardware spec
+  plate_diameter_m: 1.087                  # 2 × 543.6 mm outer radius
   # Joint Cartesian coordinates in platform-local frame (Z=0).
-  # CONFIRMED from M2 CAD
+  # CAD-confirmed physical points. ORDERED FOR CROSS-PAIRING:
+  #   index i connects to base joint i — each base pair fans out
+  #   to two different platform pairs (standard Stewart V-spread).
+  #
+  #   North base (90°) → NW (150°) + NE (30°)
+  #   SW base  (210°) → S  (270°) + NW (150°)
+  #   SE base  (330°) → NE (30°)  + S  (270°)
   joints_xy_m:
-    - [ 0.447216,  0.258200]    # P1 (30°)
-    - [ 0.470771,  0.271800]    # P2 (30°)
-    - [-0.447216,  0.258200]    # P3 (150°)
-    - [-0.470771,  0.271800]    # P4 (150°)
-    - [ 0.000000, -0.516400]    # P5 (270°)
-    - [ 0.000000, -0.543600]    # P6 (270°)
+    - [-0.447216,  0.258200]    # T1 — NW inner  ← B1 (North inner)
+    - [ 0.470771,  0.271800]    # T2 — NE outer  ← B2 (North outer)
+    - [ 0.000000, -0.516400]    # T3 — S  inner  ← B3 (SW inner)
+    - [-0.470771,  0.271800]    # T4 — NW outer  ← B4 (SW outer)
+    - [ 0.447216,  0.258200]    # T5 — NE inner  ← B5 (SE inner)
+    - [ 0.000000, -0.543600]    # T6 — S  outer  ← B6 (SE outer)
 
 # --- Neutral / home pose ---
-# Height of platform above base at neutral (metres)
-# CONFIRMED from M2 CAD: 1672.425 mm
-neutral_height_m: 1.672425                 # CONFIRMED — from M2 CAD
+# Height of platform centre above base plane (metres).
+# CAD-confirmed: 1672.425 mm
+neutral_height_m: 1.672425
 
 # --- Joint articulation limits ---
 # Confirmed: M8 spherical rod ends, ±25° articulation
