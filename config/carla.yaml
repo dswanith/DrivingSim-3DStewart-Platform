@@ -1,0 +1,42 @@
+# =============================================================================
+# carla.yaml — CARLA driving simulator connection configuration
+# =============================================================================
+# All values are PLACEHOLDER — set to match your CARLA installation.
+# The simulator runs fully in synthetic mode with CARLA absent.
+# =============================================================================
+
+connection:
+  # CARLA server host and port
+  # PLACEHOLDER — default CARLA values
+  host: "127.0.0.1"                        # Running locally!
+  port: 2000                               # PLACEHOLDER — default CARLA port
+
+  # Connection timeout (seconds) — how long to wait before falling back
+  timeout_s: 5.0                           # PLACEHOLDER
+
+  # Reconnect behavior on disconnect
+  reconnect_attempts: 3                    # PLACEHOLDER
+  reconnect_delay_s: 2.0                   # PLACEHOLDER
+
+# --- CARLA API version ---
+# PLACEHOLDER — verify against installed CARLA release
+# Most stable student builds use 0.9.15; newer 0.10.0 (UE5) may be unstable
+api_version: "0.9.16"                      # Updated to match pip availability
+
+# --- Telemetry settings ---
+telemetry:
+  # Expected update rate from CARLA
+  rate_hz: 60.0                            # CONFIRMED — ~60 Hz
+  convert_to_specific_force: true
+  synchronous_mode: false
+  # Which CARLA vehicle sensor data to read
+  sensors:
+    - "accelerometer"      # linear acceleration (m/s²)
+    - "gyroscope"          # angular velocity (rad/s)
+    - "gnss"               # for orientation / position if needed
+
+# --- Fallback behavior ---
+fallback:
+  # If CARLA is unavailable, fall back to synthetic telemetry
+  mode: "synthetic"
+  log_warning: true

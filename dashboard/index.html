@@ -1,0 +1,276 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>DrivingSim 6-DOF Stewart Platform Digital Twin</title>
+    <meta name="description" content="Real-time 6-DOF Stewart platform digital twin driven by Python motion cueing simulation.">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;900&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="styles.css">
+
+    <!-- Three.js via CDN -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
+</head>
+<body>
+    <div class="dashboard-container">
+
+        <!-- ───── TOP HEADER ───── -->
+        <header class="dashboard-header">
+            <div class="brand">
+                <span class="pulse-ring"></span>
+                <h1>STEWART-6DOF <span class="accent-text">DIGITAL TWIN</span></h1>
+            </div>
+
+            <div class="control-group header-controls">
+                <!-- Mode toggle -->
+                <div class="mode-toggle">
+                    <button id="btn-mode-synthetic" class="active">SYNTHETIC</button>
+                    <button id="btn-mode-manual">MANUAL</button>
+                </div>
+
+                <!-- Scenario selector -->
+                <div class="scenario-selector-container">
+                    <label for="select-scenario">SCENARIO:</label>
+                    <select id="select-scenario">
+                        <option value="speed_hump">Speed Hump</option>
+                        <option value="pothole">Pothole Impact</option>
+                        <option value="turn">Constant-Radius Turn</option>
+                        <option value="lane_change">Lane Change</option>
+                        <option value="straight">Straight Cruise</option>
+                    </select>
+                </div>
+
+                <!-- Playback -->
+                <div class="playback-controls">
+                    <button id="btn-start"  class="btn-primary">▶ START</button>
+                    <button id="btn-pause">⏸ PAUSE</button>
+                    <button id="btn-reset">⟳ RESET</button>
+                </div>
+            </div>
+
+            <!-- Connection / safety status -->
+            <div class="status-indicators">
+                <div class="status-item">
+                    <span class="status-label">SERVER:</span>
+                    <span id="conn-status" class="status-val status-disconnected">DISCONNECTED</span>
+                </div>
+                <div class="status-item">
+                    <span class="status-label">SAFETY:</span>
+                    <span id="estop-status" class="status-val status-ok">NORMAL</span>
+                </div>
+                <div class="status-item">
+                    <span class="status-label">PHASE:</span>
+                    <span id="phase-label" class="status-val">—</span>
+                </div>
+                <div class="status-item mono-small">
+                    <span id="frame-counter" class="status-val">—</span>
+                </div>
+            </div>
+        </header>
+
+        <!-- ───── MAIN GRID ───── -->
+        <main class="dashboard-grid">
+
+            <!-- LEFT: 2D Track + Vehicle Metrics -->
+            <section class="grid-card panel-left">
+                <div class="card-header">
+                    <h2>VEHICLE TELEMETRY</h2>
+                    <span class="panel-tag">LIVE</span>
+                </div>
+                <div class="canvas-container">
+                    <canvas id="vehicle-track-canvas"></canvas>
+                </div>
+                <div class="telemetry-grid">
+                    <div class="telemetry-card">
+                        <span class="metric-label">SPEED</span>
+                        <div class="metric-val-unit">
+                            <span id="val-speed" class="metric-value">0.0</span>
+                            <span class="metric-unit">km/h</span>
+                        </div>
+                    </div>
+                    <div class="telemetry-card">
+                        <span class="metric-label">LAT ACCEL</span>
+                        <div class="metric-val-unit">
+                            <span id="val-ay" class="metric-value">0.000</span>
+                            <span class="metric-unit">g</span>
+                        </div>
+                    </div>
+                    <div class="telemetry-card">
+                        <span class="metric-label">VERT DIST</span>
+                        <div class="metric-val-unit">
+                            <span id="val-az" class="metric-value">0.000</span>
+                            <span class="metric-unit">m/s²</span>
+                        </div>
+                    </div>
+                    <div class="telemetry-card">
+                        <span class="metric-label">YAW RATE</span>
+                        <div class="metric-val-unit">
+                            <span id="val-yawrate" class="metric-value">0.0</span>
+                            <span class="metric-unit">°/s</span>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- CENTER: 3D Three.js Stewart Viewer -->
+            <section class="grid-card panel-center">
+                <div class="card-header">
+                    <h2>STEWART PLATFORM — 3D VIEW</h2>
+                    <span class="panel-tag">THREE.JS · LIVE IK</span>
+                </div>
+                <div id="threejs-container">
+                    <!-- Three.js canvas injected here by stewart.js -->
+                </div>
+                <!-- Pose overlay -->
+                <div class="overlay-pose-data">
+                    <div class="pose-col">
+                        <div>TX: <span id="pose-tx">0.0</span> mm</div>
+                        <div>TY: <span id="pose-ty">0.0</span> mm</div>
+                        <div>TZ: <span id="pose-tz">0.0</span> mm</div>
+                    </div>
+                    <div class="pose-col">
+                        <div>ROLL:  <span id="pose-roll">0.00</span>°</div>
+                        <div>PITCH: <span id="pose-pitch">0.00</span>°</div>
+                        <div>YAW:   <span id="pose-yaw">0.00</span>°</div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- RIGHT: Actuator State + Sliders -->
+            <section class="grid-card panel-right">
+                <div class="card-header">
+                    <h2>ACTUATION STATE</h2>
+                    <span class="panel-tag" id="panel-right-tag">ACTUATORS</span>
+                </div>
+
+                <!-- Manual sliders (hidden in synthetic mode) -->
+                <div id="manual-sliders-section" class="hidden">
+                    <div class="slider-row">
+                        <label>Surge X (mm)</label>
+                        <input type="range" id="slider-x"     min="-100" max="100" value="0">
+                        <span id="slider-val-x">0</span>
+                    </div>
+                    <div class="slider-row">
+                        <label>Sway Y (mm)</label>
+                        <input type="range" id="slider-y"     min="-100" max="100" value="0">
+                        <span id="slider-val-y">0</span>
+                    </div>
+                    <div class="slider-row">
+                        <label>Heave Z (mm)</label>
+                        <input type="range" id="slider-z"     min="-100" max="100" value="0">
+                        <span id="slider-val-z">0</span>
+                    </div>
+                    <div class="slider-row">
+                        <label>Roll (°)</label>
+                        <input type="range" id="slider-roll"  min="-15" max="15" value="0" step="0.1">
+                        <span id="slider-val-roll">0</span>
+                    </div>
+                    <div class="slider-row">
+                        <label>Pitch (°)</label>
+                        <input type="range" id="slider-pitch" min="-15" max="15" value="0" step="0.1">
+                        <span id="slider-val-pitch">0</span>
+                    </div>
+                    <div class="slider-row">
+                        <label>Yaw (°)</label>
+                        <input type="range" id="slider-yaw"   min="-15" max="15" value="0" step="0.1">
+                        <span id="slider-val-yaw">0</span>
+                    </div>
+                </div>
+
+                <!-- Actuator bars (synthetic mode) -->
+                <div id="actuator-bars-section">
+                    <!-- Generated for L1..L6 -->
+                    <div class="actuator-bar-container">
+                        <div class="bar-header">
+                            <span style="color:#ff4444">L1</span>
+                            <span id="lbl-len-1">— mm</span>
+                            <span id="lbl-delta-1" class="delta-lbl">Δ 0.0</span>
+                        </div>
+                        <div class="progress-bg"><div id="bar-len-1" class="progress-fill" style="width:50%"></div></div>
+                    </div>
+                    <div class="actuator-bar-container">
+                        <div class="bar-header">
+                            <span style="color:#44aaff">L2</span>
+                            <span id="lbl-len-2">— mm</span>
+                            <span id="lbl-delta-2" class="delta-lbl">Δ 0.0</span>
+                        </div>
+                        <div class="progress-bg"><div id="bar-len-2" class="progress-fill" style="width:50%"></div></div>
+                    </div>
+                    <div class="actuator-bar-container">
+                        <div class="bar-header">
+                            <span style="color:#44ff88">L3</span>
+                            <span id="lbl-len-3">— mm</span>
+                            <span id="lbl-delta-3" class="delta-lbl">Δ 0.0</span>
+                        </div>
+                        <div class="progress-bg"><div id="bar-len-3" class="progress-fill" style="width:50%"></div></div>
+                    </div>
+                    <div class="actuator-bar-container">
+                        <div class="bar-header">
+                            <span style="color:#ffaa22">L4</span>
+                            <span id="lbl-len-4">— mm</span>
+                            <span id="lbl-delta-4" class="delta-lbl">Δ 0.0</span>
+                        </div>
+                        <div class="progress-bg"><div id="bar-len-4" class="progress-fill" style="width:50%"></div></div>
+                    </div>
+                    <div class="actuator-bar-container">
+                        <div class="bar-header">
+                            <span style="color:#dd44ff">L5</span>
+                            <span id="lbl-len-5">— mm</span>
+                            <span id="lbl-delta-5" class="delta-lbl">Δ 0.0</span>
+                        </div>
+                        <div class="progress-bg"><div id="bar-len-5" class="progress-fill" style="width:50%"></div></div>
+                    </div>
+                    <div class="actuator-bar-container">
+                        <div class="bar-header">
+                            <span style="color:#ffff44">L6</span>
+                            <span id="lbl-len-6">— mm</span>
+                            <span id="lbl-delta-6" class="delta-lbl">Δ 0.0</span>
+                        </div>
+                        <div class="progress-bg"><div id="bar-len-6" class="progress-fill" style="width:50%"></div></div>
+                    </div>
+                </div>
+
+                <!-- Safety warnings -->
+                <div class="safety-alerts-box">
+                    <span class="section-title">SAFETY MONITOR</span>
+                    <div id="safety-warnings-list" class="warnings-list">
+                        <div class="warning-placeholder">✓ All systems normal.</div>
+                    </div>
+                </div>
+            </section>
+        </main>
+
+        <!-- ───── BOTTOM CHARTS ───── -->
+        <footer class="dashboard-footer">
+            <div class="footer-card">
+                <div class="footer-card-header">VEHICLE ACCELERATION (m/s²)</div>
+                <div class="graph-container">
+                    <svg id="svg-chart-accel" viewBox="0 0 400 120"></svg>
+                </div>
+            </div>
+            <div class="footer-card">
+                <div class="footer-card-header">ACTUATOR DISPLACEMENT FROM NEUTRAL (mm)</div>
+                <div class="graph-container">
+                    <svg id="svg-chart-lengths" viewBox="0 0 400 120"></svg>
+                </div>
+            </div>
+            <div class="footer-card">
+                <div class="footer-card-header">PLATFORM MOTION CUEING (°, mm)</div>
+                <div class="graph-container">
+                    <svg id="svg-chart-currents" viewBox="0 0 400 120"></svg>
+                </div>
+            </div>
+        </footer>
+
+    </div>
+
+    <!-- Application scripts (order matters) -->
+    <script src="../kinematics.js"></script>
+    <script src="stewart.js"></script>
+    <script src="vehicle_viz.js"></script>
+    <script src="telemetry.js"></script>
+</body>
+</html>

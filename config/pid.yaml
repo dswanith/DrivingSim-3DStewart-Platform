@@ -1,0 +1,37 @@
+# =============================================================================
+# pid.yaml — PID controller configuration (per-actuator position loop)
+# =============================================================================
+# The STM32F407 runs an independent PID position loop per actuator.
+# This SIL simulator replicates that loop with a kinematic plant model
+# (position += velocity × dt — no inertia, friction, or backlash).
+#
+# All gains are PLACEHOLDER — must be tuned on real hardware.
+# =============================================================================
+
+# --- PID gains (applied identically to all 6 actuators) ---
+# To use per-actuator gains, replace these with a list of 6 dicts.
+gains:
+  kp: 10.0                                # PLACEHOLDER — proportional gain
+  ki: 0.5                                 # PLACEHOLDER — integral gain
+  kd: 0.1                                 # PLACEHOLDER — derivative gain
+
+# --- Output limits ---
+# PID output is interpreted as velocity command (m/s)
+output_limits:
+  min_output_m_s: -0.05                    # PLACEHOLDER — max retract velocity
+  max_output_m_s: 0.05                     # PLACEHOLDER — max extend velocity
+
+# --- Anti-windup ---
+anti_windup:
+  enabled: true
+  method: "clamping"                       # Clamping: stop integrating when output saturates
+
+# --- Control loop timing ---
+# PLACEHOLDER — STM32 timer-interrupt rate for PID updates.
+# This MUST be pinned down and verified at M4 (electronics bring-up),
+# as the simulation's sub-stepping accumulator fix relies on it.
+control_rate_hz: 1000.0                    # PLACEHOLDER — 1 kHz typical for stepper PID
+
+# --- Derivative filter ---
+# Low-pass cutoff on the derivative term to reduce noise amplification
+derivative_filter_hz: 100.0                # PLACEHOLDER

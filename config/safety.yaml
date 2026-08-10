@@ -1,0 +1,44 @@
+# =============================================================================
+# safety.yaml — Safety system configuration
+# =============================================================================
+
+# --- E-stop ---
+estop:
+  # NC (normally closed) E-stop → 25A AC contactor → cuts AC mains to 48V SMPS
+  # NOT a DC-side disconnect
+  type: "NC_estop_ac_contactor"            # CONFIRMED
+  contactor_rating_a: 25.0                 # CONFIRMED — 25 A AC
+
+# --- Limit switches ---
+limit_switches:
+  type: "Omron_SS-5GL"                     # CONFIRMED
+  count_per_actuator: 2                    # CONFIRMED — 2 per actuator (12 total)
+  total_count: 12                          # CONFIRMED
+
+# --- Actuator stroke & kinematic limits ---
+# Used by safety/limits.py to flag out-of-range commands
+actuator:
+  # The maximum physical travel of the actuator (meters)
+  estimated_usable_stroke_m: 0.190         # PLACEHOLDER — waiting on real hardware (M3)
+  
+  # Where neutral_height places the actuator within its stroke
+  # 0.5 = exact midpoint. Using 0.5 as a placeholder until M3 validation.
+  stroke_midpoint_ratio: 0.5               # PLACEHOLDER
+  # Max kinematic limits (ESTIMATED — placeholder)
+  # 1200 RPM -> ~80 mm/s linear velocity
+  max_velocity_m_s: 0.080                  # ESTIMATED
+  max_acceleration_m_s2: 1.0               # ESTIMATED
+
+# --- Workspace limits ---
+# Duplicated from geometry.yaml for safety-checker convenience.
+# The safety module reads from safety.yaml; keep in sync.
+workspace:
+  max_translation_m: 0.060                 # Expanded for demonstration
+  max_rotation_deg: 12.0                   # Expanded for demonstration
+
+# --- Power/current limits ---
+# Duplicated from electrical.yaml for safety-checker convenience.
+power:
+  max_bus_current_a: 10.0                  # CONFIRMED — PSU limit
+  max_bus_power_w: 480.0                   # CONFIRMED — PSU limit
+  max_phase_current_a: 4.2                 # CONFIRMED — DM542 max

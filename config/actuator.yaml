@@ -1,0 +1,54 @@
+# =============================================================================
+# actuator.yaml — Ballscrew actuator and motor configuration
+# =============================================================================
+# All dimensions in SI units (metres, seconds, radians).
+# =============================================================================
+
+# --- Ballscrew: SFU1204 ---
+ballscrew:
+  diameter_m: 0.012                        # CONFIRMED — 12 mm
+  lead_m: 0.004                            # CONFIRMED — 4 mm lead
+  overall_length_m: 0.250                  # CONFIRMED — 250 mm OAL
+  accuracy_grade: "C7"                     # CONFIRMED
+
+  # Usable stroke: OAL minus end-support stack-up (BK10 + BF10)
+  # ESTIMATED — ~30 mm each side for bearing blocks, lock nuts, etc.
+  # Replace with CAD-confirmed value when available.
+  estimated_usable_stroke_m: 0.190         # ESTIMATED — 250 - 30 - 30 = 190 mm
+
+# --- Motor: NEMA23 (57HS22 or equivalent) ---
+motor:
+  steps_per_rev: 200                       # CONFIRMED — 1.8°/step
+  shaft_diameter_m: 0.00635                # CONFIRMED — 6.35 mm
+  holding_torque_min_nm: 2.2               # CONFIRMED — range low
+  holding_torque_max_nm: 3.0               # CONFIRMED — range high
+  rated_current_a: 4.0                     # CONFIRMED — 4 A/phase rated
+
+# --- Driver: DM542 ---
+driver:
+  input_voltage_min_v: 18.0                # CONFIRMED
+  input_voltage_max_v: 50.0                # CONFIRMED
+  current_range_min_a: 1.0                 # CONFIRMED
+  current_range_max_a: 4.2                 # CONFIRMED
+  max_microsteps_per_rev: 25600            # CONFIRMED — max supported
+
+  # Actual microstep setting on the DM542 DIP switches
+  microsteps_per_fullstep: 16              # ASSUMED — report states DM542 capable of up to 25600 microsteps, does not specify DIP switch config
+
+# --- Coupling ---
+coupling:
+  type: "jaw_spider"                       # CONFIRMED
+  ratio: 1.0                              # CONFIRMED — 1:1 direct, no gear reduction
+  motor_bore_m: 0.00635                    # CONFIRMED — 6.35 mm
+  screw_bore_m: 0.010                      # CONFIRMED — 10 mm
+
+# --- Encoder ---
+encoder:
+  ppr: 600                                 # CONFIRMED — 600 pulses per revolution
+  quadrature_multiplier: 4                 # CONFIRMED — ABZ ×4 decode
+  counts_per_rev: 2400                     # CONFIRMED — 600 × 4
+  voltage_v: 5.0                           # CONFIRMED — 5V TTL
+  mounting: "free_end_bf10"                # CONFIRMED — BF10 side, measures screw directly
+
+# --- Home / neutral leg lengths ---
+# Computed dynamically by the geometry module at load time.

@@ -1,0 +1,55 @@
+# =============================================================================
+# mca.yaml — Motion Cueing Algorithm parameters
+# =============================================================================
+# All values are PLACEHOLDER defaults — these must be tuned.
+# =============================================================================
+
+# --- World-to-body frame rotation ---
+body_frame_rotation: "full"
+
+# --- Scaling Gains ---
+# Maps vehicle inputs to platform utilization
+gains:
+  surge: 0.6
+  sway: 0.6
+  heave: 0.8
+  roll: 0.8
+  pitch: 0.8
+  yaw: 0.7
+
+# --- Dead Zone (Noise Floor) ---
+dead_zone:
+  acceleration_m_s2: 0.02
+  angular_velocity_rad_s: 0.02
+
+# --- High-pass filter (transient extraction) ---
+hpf:
+  cutoff_freq_hz: 0.5                      # Lower cutoff = more motion cued
+  order: 2                                 # 2nd-order Butterworth
+
+hpf_rotation:
+  cutoff_freq_hz: 0.3
+  order: 2
+
+# --- Tilt coordination ---
+tilt_coordination:
+  gain: 0.08                               # rad / (m/s²)
+  rate_limit_rad_s: 0.08                   # ~4.6 deg/s
+  max_tilt_deg: 8.0                        # Up to 8 degree sustained tilt
+
+# --- Washout filter (split translation/rotation) ---
+washout:
+  translation:
+    time_constant_s: 2.5                   
+  rotation:
+    time_constant_s: 5.0                   
+
+# --- Rate limits on output pose ---
+pose_rate_limits:
+  max_translation_rate_m_s: 0.15
+  max_rotation_rate_rad_s: 0.8
+
+# --- General MCA settings ---
+input_rate_hz: 95.0                        
+output_rate_hz: 95.0                       
+

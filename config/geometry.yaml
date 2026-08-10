@@ -1,0 +1,70 @@
+# =============================================================================
+# geometry.yaml — Stewart-platform joint geometry configuration
+# =============================================================================
+# All dimensions in SI units (metres, radians).
+# Convert from mm in comments for clarity; stored values are metres.
+#
+# JOINT LAYOUT: Parameterized by clocking angles and bolt-circle radii.
+# The IK code computes joint Cartesian coordinates from these parameters.
+# Replace PLACEHOLDER values with CAD-confirmed measurements.
+# =============================================================================
+
+# --- Euler rotation convention ---
+# Intrinsic Z-Y-X (yaw → pitch → roll), automotive axes:
+#   X-forward, Y-left, Z-up, right-handed
+euler_convention: "ZYX_intrinsic"
+body_frame: "automotive"  # X-forward, Y-left, Z-up
+
+# --- Base plate (fixed) ---
+# Confirmed: ⌀400 mm = 0.400 m diameter, 8 mm 6061-Al
+base:
+  plate_diameter_m: 0.400                  # CONFIRMED — from hardware spec
+  # Joint Cartesian coordinates in base-local frame (Z=0). 
+  # X (forward), Y (left). CONFIRMED from M2 CAD
+  joints_xy_m:
+    - [ 0.000000,  1.101400]    # B1 (90°)
+    - [ 0.000000,  1.148600]    # B2 (90°)
+    - [-0.953840, -0.550700]    # B3 (210°)
+    - [-0.994717, -0.574300]    # B4 (210°)
+    - [ 0.953840, -0.550700]    # B5 (330°)
+    - [ 0.994717, -0.574300]    # B6 (330°)
+
+# --- Top plate (moving platform) ---
+# Confirmed: ⌀250 mm = 0.250 m diameter, 8 mm 6061-Al, 4× M8 seat mounts
+platform:
+  plate_diameter_m: 0.250                  # CONFIRMED — from hardware spec
+  # Joint Cartesian coordinates in platform-local frame (Z=0).
+  # CONFIRMED from M2 CAD
+  joints_xy_m:
+    - [ 0.447216,  0.258200]    # P1 (30°)
+    - [ 0.470771,  0.271800]    # P2 (30°)
+    - [-0.447216,  0.258200]    # P3 (150°)
+    - [-0.470771,  0.271800]    # P4 (150°)
+    - [ 0.000000, -0.516400]    # P5 (270°)
+    - [ 0.000000, -0.543600]    # P6 (270°)
+
+# --- Neutral / home pose ---
+# Height of platform above base at neutral (metres)
+# CONFIRMED from M2 CAD: 1672.425 mm
+neutral_height_m: 1.672425                 # CONFIRMED — from M2 CAD
+
+# --- Joint articulation limits ---
+# Confirmed: M8 spherical rod ends, ±25° articulation
+# PLACEHOLDER: The ±25° operating range assumes the clevis bracket is mounted
+# to bisect the leg's operating envelope. The current placeholder geometry puts
+# the neutral leg angle at ~25.9° from vertical, which implies near zero margin
+# before motion if the bracket isn't perfectly angled to match.
+# Needs verification against CAD once M2 measurements land.
+joint_hardware_limit_deg: 25.0            # CONFIRMED — from rod-end spec
+joint_operating_margin_deg: 2.0           # ASSUMED — safety margin below hardware limit
+
+# --- Workspace saturation limits ---
+# Maximum allowed translation and rotation from neutral pose.
+# PLACEHOLDER — not specified, conservative defaults
+workspace_limits:
+  max_translation_x_m: 0.030              # PLACEHOLDER
+  max_translation_y_m: 0.030              # PLACEHOLDER
+  max_translation_z_m: 0.030              # PLACEHOLDER
+  max_roll_deg: 15.0                       # PLACEHOLDER
+  max_pitch_deg: 15.0                      # PLACEHOLDER
+  max_yaw_deg: 15.0                        # PLACEHOLDER

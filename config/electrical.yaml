@@ -1,0 +1,63 @@
+# =============================================================================
+# electrical.yaml — Electrical system model parameters
+# =============================================================================
+# ALL outputs from the electrical model are labeled ESTIMATED.
+# No value here should ever be labeled MEASURED.
+#
+# The electrical model uses a POWER-BALANCE approach:
+#   motor_power → driver_input_power → bus_current
+# It does NOT derive bus current from motor phase current directly —
+# those are different electrical domains.
+# =============================================================================
+
+# --- Power supply ---
+psu:
+  bus_voltage_v: 48.0                      # CONFIRMED — 48 VDC SMPS
+  bus_capacity_a: 10.0                     # CONFIRMED — 10 A max
+  bus_capacity_w: 480.0                    # CONFIRMED — 480 W
+  ac_input_v: 230.0                        # CONFIRMED — 230 VAC
+
+logic_supply:
+  voltage_v: 5.0                           # CONFIRMED — 5 VDC SMPS
+  capacity_a: 3.0                          # CONFIRMED — 3 A max
+  # Estimated quiescent draw of STM32 + encoders + level shifters
+  # PLACEHOLDER — not measured
+  estimated_draw_a: 0.5                    # PLACEHOLDER — ESTIMATED
+
+# --- Motor electrical model ---
+motor:
+  # Torque constant Kt estimated from rated specs:
+  #   Kt ≈ holding_torque / rated_current
+  #   Range: 2.2/4.0 = 0.55  to  3.0/4.0 = 0.75 N·m/A
+  # PLACEHOLDER — use midpoint until motor datasheet provides exact Kt
+  kt_estimated_nm_per_a: 0.65             # PLACEHOLDER — ESTIMATED (midpoint of 0.55–0.75)
+  rated_current_a: 4.0                     # CONFIRMED — 4 A/phase
+
+# --- Efficiency estimates ---
+# These are model assumptions, NOT measured values.
+efficiencies:
+  # Ballscrew efficiency (typical C7 rolled screw: 0.85–0.95)
+  # PLACEHOLDER — not measured
+  eta_screw: 0.90                          # PLACEHOLDER — ESTIMATED
+  # Driver efficiency (DM542 typical: 0.90–0.95)
+  # PLACEHOLDER — not measured
+  eta_driver: 0.92                         # PLACEHOLDER — ESTIMATED
+
+# --- Payload / moving mass ---
+# Per-leg axial force depends on total payload + platform mass.
+# PLACEHOLDER — not in source data at all; this is a guess for initial simulation.
+payload:
+  # Total mass supported by the platform (seat + occupant + platform plate)
+  # PLACEHOLDER — genuinely unknown, 20 kg is a rough starting estimate for 1/5 scale
+  total_payload_kg: 20.0                   # PLACEHOLDER — ESTIMATED, replace with weighed value
+  # Platform plate mass (⌀250 mm × 8 mm 6061-Al, density ~2700 kg/m³)
+  # ≈ π × 0.125² × 0.008 × 2700 ≈ 1.06 kg
+  platform_mass_kg: 1.1                    # ESTIMATED — from geometry, not weighed
+  # Per-leg share of gravity load (6 legs, assumes even distribution at neutral)
+  # Computed at runtime, not a config input
+
+# --- Current/power limits for safety checks ---
+limits:
+  max_phase_current_a: 4.2                 # CONFIRMED — DM542 max configurable
+  max_bus_current_total_a: 10.0            # CONFIRMED — PSU limit
+  max_bus_power_w: 480.0                   # CONFIRMED — PSU limit
